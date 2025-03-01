@@ -9,13 +9,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://protectures.vercel.app",
-        "https://protectures-samcruz1513-gmailcoms-projects.vercel.app",
-        "https://protectures-git-main-samcruz1513-gmailcoms-projects.vercel.app",
-        "https://protectures-iye9fsftj-samcruz1513-gmailcoms-projects.vercel.app",
-        "http://localhost:3000",
-    ],  # Replace "*" with specific allowed origins for production
+    allow_origins=["*"],  # Replace "*" with specific allowed origins for production
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, OPTIONS, etc.)
     allow_headers=["*"],  # Allow all headers
 )

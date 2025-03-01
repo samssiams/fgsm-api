@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Supabase configuration (from environment variables)
+# Supabase configuration (URL and key from environment variables)
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 BUCKET_NAME = "protecture"
@@ -30,8 +30,10 @@ model.eval()
 logger.info("Pre-trained model loaded and set to eval mode.")
 
 def preprocess_image(image_data: bytes):
-    transform = transforms.Compose([transforms.ToTensor()])
-    image = Image.open(io.BytesIO(image_data)).convert("RGB")
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+    image = Image.open(io.BytesIO(image_data)).convert('RGB')
     image_tensor = transform(image).unsqueeze(0)
     logger.info("Image preprocessed successfully.")
     return image_tensor
@@ -70,10 +72,14 @@ def tensor_to_image(tensor):
     return Image.fromarray(image_np)
 
 def upload_file_to_supabase(file_bytes: bytes, original_file_name: str) -> str:
+    # Generate a unique file name using UUID and preserve file extension.
     file_extension = os.path.splitext(original_file_name)[1] or ".jpg"
     unique_file_name = f"perturbed_{uuid.uuid4()}{file_extension}"
     path = f"{FOLDER_PATH}/{unique_file_name}"
+    
+    # Upload the file to Supabase.
     res = supabase.storage.from_(BUCKET_NAME).upload(path, file_bytes)
+    # Assuming a successful HTTP request (200 OK) means the file is uploaded.
     public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
     logger.info("Supabase public URL: %s", public_url)
     return public_url
@@ -81,10 +87,18 @@ def upload_file_to_supabase(file_bytes: bytes, original_file_name: str) -> str:
 @router.post("/api/perturbed-image")
 async def create_perturbed_image(
     file: UploadFile = File(...),
-    perturbation_level: str = Form(...)
+    perturbation_level: str = Form(...),
+    description: str = Form(...),
+    category_id: str = Form(...),
+    user_id: int = Form(...),
+    community_id: str = Form(None)
 ):
-    logger.info("Received request for perturbed image creation.")
-    logger.info("Perturbation level: %s", perturbation_level)
+    logger.info("Received request for perturbed image post creation.")
+    logger.info("Received field - perturbation_level: %s", perturbation_level)
+    logger.info("Received field - description: %s", description)
+    logger.info("Received field - category_id: %s", category_id)
+    logger.info("Received field - user_id: %s", user_id)
+    logger.info("Received field - community_id: %s", community_id)
     logger.info("Received file - filename: %s, content_type: %s", file.filename, file.content_type)
     
     try:
@@ -133,4 +147,5 @@ async def create_perturbed_image(
         logger.error("Error uploading to Supabase: %s", e)
         raise HTTPException(status_code=500, detail="Error uploading file to storage")
     
+    # Return the perturbed image URL immediately.
     return JSONResponse(status_code=201, content={"image_url": public_url})
