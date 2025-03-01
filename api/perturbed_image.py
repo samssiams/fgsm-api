@@ -112,17 +112,17 @@ async def create_perturbed_image(
     level = perturbation_level.upper()
     if level == "LOW":
         epsilon = 0.20
-        iterations = 5
+        iterations = 2
         alpha = 0.06
         threshold = 0.50
     elif level == "MEDIUM":
         epsilon = 0.25
-        iterations = 5
+        iterations = 2
         alpha = 0.10
         threshold = 0.50
     elif level == "HIGH":
         epsilon = 0.30
-        iterations = 5
+        iterations = 2
         alpha = 0.15
         threshold = 0.50
     else:
