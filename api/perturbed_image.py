@@ -11,7 +11,6 @@ import numpy as np
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from supabase import create_client, Client
-import psutil  # For memory usage debugging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,12 +36,6 @@ try:
 except AttributeError:
     resample = Image.ANTIALIAS
 
-def log_memory_usage(stage: str):
-    process = psutil.Process(os.getpid())
-    mem_used = process.memory_info().rss  # bytes
-    mem_mb = mem_used / (1024 * 1024)
-    logger.info(f"[MEMORY] {stage}: {mem_mb:.2f} MB used")
-
 def preprocess_image(image_data: bytes):
     image = Image.open(io.BytesIO(image_data)).convert("RGB")
     
@@ -58,7 +51,6 @@ def preprocess_image(image_data: bytes):
     transform = transforms.Compose([transforms.ToTensor()])
     image_tensor = transform(image).unsqueeze(0)
     logger.info("Image preprocessed successfully.")
-    log_memory_usage("After preprocessing image")
     return image_tensor
 
 def fgsm_attack(model, image, target_class, epsilon, iterations, alpha, threshold):
@@ -85,7 +77,6 @@ def fgsm_attack(model, image, target_class, epsilon, iterations, alpha, threshol
         perturbed_image = torch.clamp(perturbed_image, image - epsilon, image + epsilon)
         perturbed_image = torch.clamp(perturbed_image, 0, 1)
         perturbed_image = perturbed_image.clone().detach().requires_grad_(True)
-    log_memory_usage("After FGSM attack")
     return perturbed_image
 
 def tensor_to_image(tensor):
@@ -93,7 +84,6 @@ def tensor_to_image(tensor):
     image_np = np.transpose(image_np, (1, 2, 0))
     image_np = (image_np * 255).astype(np.uint8)
     logger.info("Tensor converted back to PIL image.")
-    log_memory_usage("After tensor conversion to image")
     return Image.fromarray(image_np)
 
 def upload_file_to_supabase(file_bytes: bytes, original_file_name: str) -> str:
@@ -103,7 +93,6 @@ def upload_file_to_supabase(file_bytes: bytes, original_file_name: str) -> str:
     res = supabase.storage.from_(BUCKET_NAME).upload(path, file_bytes)
     public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(path)
     logger.info("Supabase public URL: %s", public_url)
-    log_memory_usage("After uploading to Supabase")
     return public_url
 
 @router.post("/api/perturbed-image")
@@ -118,7 +107,6 @@ async def create_perturbed_image(
     try:
         image_data = await file.read()
         logger.info("File read successfully. Size: %d bytes", len(image_data))
-        log_memory_usage("After reading file")
     except Exception as e:
         logger.error("Error reading file: %s", e)
         raise HTTPException(status_code=400, detail="Error reading file")
@@ -154,7 +142,6 @@ async def create_perturbed_image(
     perturbed_img.save(buf, format="PNG")
     buf.seek(0)
     file_bytes = buf.getvalue()
-    log_memory_usage("After saving perturbed image to buffer")
     
     try:
         public_url = upload_file_to_supabase(file_bytes, file.filename)
